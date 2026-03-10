@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ti">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruthless AI Scout - Institutional Trap Detector</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Ethiopic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans Ethiopic', sans-serif; background: #000; color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
+        .main-alert { width: 100%; padding: 40px 20px; text-align: center; border-bottom: 10px solid #111; transition: 0.3s; font-size: 24px; font-weight: 900; }
+        .container { max-width: 1200px; margin: auto; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .card { background: #080808; padding: 25px; border-radius: 15px; border: 1px solid #1a1a1a; position: relative; }
+        .price-tag { font-size: 55px; font-weight: 900; letter-spacing: -2px; font-family: 'Arial Black', sans-serif; }
+        .logic-panel { background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; margin-top: 15px; border-left: 5px solid #333; font-size: 18px; line-height: 1.6; }
+        
+        /* Tactical Colors */
+        .status-danger { background: #4a0000 !important; border-color: #ff0000 !important; color: #ff0000; } /* SELL / TRAP */
+        .status-sniper { background: #004a1a !important; border-color: #00ff00 !important; color: #00ff00; } /* BUY / SNIPER */
+        .status-trash { background: #2b2b00 !important; border-color: #ffff00 !important; color: #ffff00; }  /* NO TRADE */
+        
+        .up { color: #00ff00; } .down { color: #ff0000; }
+        canvas { max-height: 180px; }
+        @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body id="scoutBody">
+
+<!-- Strategic Command Header -->
+<div id="alertHeader" class="main-alert">
+    <div id="scoutTitle">AI SCOUT: INITIALIZING...</div>
+    <div id="scoutDescription" style="font-size: 18px; color: #888; margin-top: 10px;">ባንክታትን ትካላትን ንተራ ትሬደር ንምጥላፍ ዝገብርዎ መጻወድያ ይምርመር ኣሎ።</div>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h3 style="color:#f0b90b;">BTC/USD COMMAND</h3>
+        <div id="btcPrice" class="price-tag">SYNCING...</div>
+        <canvas id="btcChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h3 style="color:#ffd700;">GOLD/USD COMMAND</h3>
+        <div id="goldPrice" class="price-tag">SYNCING...</div>
+        <canvas id="goldChart"></canvas>
+    </div>
+</div>
+
+<script>
+    let btcHistory = [], goldHistory = [];
+    let btcPeak = 0, btcPrev = 0, lastVol = 0;
+
+    const ctx = document.getElementById('btcChart').getContext('2d');
+    const btcChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ data: [], borderColor: '#f0b90b', borderWidth: 4, tension: 0.2, pointRadius: 0 }] },
+        options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { position: 'right', grid: { color: '#111' }, ticks: { color: '#444' } } } }
+    });
+
+    async function scoutMarket() {
+        try {
+            const b_res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
+            const b_json = await b_res.json();
+            const btc = b_json.bitcoin.usd;
+
+            updateUI(btc);
+            btcPrev = btc;
+        } catch (e) { console.log("Scout Offline..."); }
+    }
+
+    function updateUI(price) {
+        const pDiv = document.getElementById('btcPrice');
+        pDiv.innerText = "$" + price.toLocaleString();
+        pDiv.className = price > btcPrev ? "price-tag up" : "price-tag down";
+
+        if (price > btcPeak) btcPeak = price;
+
+        btcHistory.push(price);
+        if (btcHistory.length > 20) btcHistory.shift();
+
+        btcChart.data.labels.push("");
+        btcChart.data.datasets[0].data.push(price);
+        if (btcChart.data.labels.length > 20) { btcChart.data.labels.shift(); btcChart.data.datasets[0].data.shift(); }
+        chartUpdate();
+
+        runRuthlessLogic(price);
+    }
+
+    function chartUpdate() { btcChart.update(); }
+
+    function runRuthlessLogic(price) {
+        const header = document.getElementById('alertHeader');
+        const title = document.getElementById('scoutTitle');
+        const desc = document.getElementById('scoutDescription');
+
+        if (btcPrev === 0) return;
+
+        let change = price - btcPrev;
+        let retracement = ((btcPeak - price) / btcPeak) * 100;
+
+        // --- RUTHLESS ALGORITHM ---
+
+        // 1. THE TRAP (Bull Trap Detection)
+        // ዋጋ ንላዕሊ ይድይብ ኣሎ ግን እቲ ምንቅስቓስ ድኹም እዩ (Manipulation)
+        if (price > btcPrev && change < 5) {
+            header.className = "main-alert status-danger";
+            title.innerText = "⚠️ መጻወድያ! (BULL TRAP DETECTED)";
+            desc.innerHTML = `<strong>ትንተና:</strong> እዚ ምድያብ እዚ ሓሶት እዩ። ባንክታት ንተራ ትሬደር ንምጥላፍ (Trap) ዝገብርዎ ዘለዉ ምንቅስቓስ እዩ። <strong>ኣይትእቶ!</strong> ሕጂ እንተኣቲኻ ክትበላዕ ኢኻ።`;
+        }
+        // 2. THE SNIPER KILL (Real Institutional Entry)
+        else if (retracement > 0.06 && price > btcPrev) {
+            header.className = "main-alert status-sniper";
+            title.innerText = "🚀 ሕጂ እዋኑ እዩ! (SNIPER KILL)";
+            desc.innerHTML = `<strong>ትንተና:</strong> ባንክታት ነቲ ቀይሕ ቦታ (Discount Zone) ረጊጾም ሓቀኛ ሓይሊ የርእዩ ኣለዉ። እዚ መጻወድያ ኣይኮነን። <strong>ሕጂ እተው!</strong> ተኸተሎም።`;
+        }
+        // 3. THE TRASH MARKET (Consolidation)
+        else if (Math.abs(change) < 2) {
+            header.className = "main-alert status-trash";
+            title.innerText = "🗑️ ዕዳጋ ቆሻሻ እዩ! (TRASH MARKET)";
+            desc.innerHTML = `<strong>ትንተና:</strong> ዕዳጋ ምንቅስቓስ የብሉን። ባንክታት ዳታ የብሎምን። ኣብዚ ቆሻሻ ዕዳጋ ግዜኻ ኣይተጥፍእ። <strong>ኮምፒውተርካ ዓጺኻ ኪድ ድቀስ!</strong>`;
+        }
+        // 4. THE DUMP (Bearish Power)
+        else if (price < btcPrev) {
+            header.className = "main-alert status-danger";
+            title.innerText = "🚨 ባንክታት ንብረቶም ይጉሕፉ ኣለዉ! (DUMPING)";
+            desc.innerHTML = `<strong>ትንተና:</strong> ትካላት ብጃምላ ይሸጡ ኣለዉ። ዕዳጋ ክቃለስ እዩ። ኣብ ዕዳጋ እንተለኻ <strong>ሕጂ ውጻእ!</strong> ኪሳራኻ ቀንስ።`;
+        }
+        else {
+            header.className = "main-alert";
+            title.innerText = "🔍 AI SCOUT: SCANNING...";
+            desc.innerText = "ባንክታት መጻወድያ ንምጽዋድ ዳታ ይእክቡ ኣለዉ። ተዓዘብ።";
+        }
+    }
+
+    setInterval(scoutMarket, 5000); // Institutional Speed
+    scoutMarket();
+</script>
+
+</body>
+</html>
